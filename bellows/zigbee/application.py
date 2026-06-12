@@ -79,8 +79,8 @@ IEEE_PREFIX_MFG_ID = {
 
 DEFAULT_TX_POWER = 8  # dBm
 
-# TODO: replace with zigpy.zgp.GP_ENDPOINT / GP_CLUSTER_ID / GP_PROFILE_ID
-# once those are released upstream.
+# These match the constants in zigpy.zgp.types; defined locally so bellows does
+# not require an unreleased zigpy build.
 GP_ENDPOINT = 242
 GP_CLUSTER_ID = 0x0021
 GP_PROFILE_ID = 0xA1E0
@@ -545,9 +545,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         if use_hashed_tclk and not stack_specific.get("hashed_tclk"):
             # Generate a random default
-            network_info.stack_specific.setdefault("ezsp", {})["hashed_tclk"] = (
-                os.urandom(16).hex()
-            )
+            network_info.stack_specific.setdefault("ezsp", {})[
+                "hashed_tclk"
+            ] = os.urandom(16).hex()
 
         initial_security_state = util.zha_security(
             network_info=network_info,
@@ -711,6 +711,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     def _handle_gp_frame(self, args: tuple) -> None:
         """Forward gpepIncomingMessageHandler as a ZCL GP Notification."""
+        # EZSP < v13 passed a legacy layout with only 9 args (no addr struct,
+        # no bidirectionalInfo).  We do not parse that layout; drop and log.
         if len(args) < 13:
             LOGGER.debug("gpepIncomingMessageHandler: short args %r, dropping", args)
             return
@@ -777,7 +779,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         # signal quality the NCP saw for this GPDF.
         proxy_nwk = int(self.state.node_info.nwk)
         lqi = int(gpd_link)
-        rssi = 0
+        rssi = 0  # GPDF callbacks carry no RSSI from the NCP
 
         self.state.counters[COUNTERS_CTRL][COUNTER_RX_GP].increment()
 
